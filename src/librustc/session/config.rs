@@ -98,6 +98,7 @@ pub enum Lto {
 #[derive(Clone, PartialEq, Hash)]
 pub enum CrossLangLto {
     LinkerPlugin(PathBuf),
+    LinkerPluginAuto,
     NoLink,
     Disabled
 }
@@ -106,6 +107,7 @@ impl CrossLangLto {
     pub fn embed_bitcode(&self) -> bool {
         match *self {
             CrossLangLto::LinkerPlugin(_) |
+            CrossLangLto::LinkerPluginAuto |
             CrossLangLto::NoLink => true,
             CrossLangLto::Disabled => false,
         }
@@ -1020,7 +1022,7 @@ macro_rules! options {
                 let mut bool_arg = None;
                 if parse_opt_bool(&mut bool_arg, v) {
                     *slot = if bool_arg.unwrap() {
-                        CrossLangLto::NoLink
+                        CrossLangLto::LinkerPluginAuto
                     } else {
                         CrossLangLto::Disabled
                     };
@@ -1367,6 +1369,7 @@ pub fn default_configuration(sess: &Session) -> ast::CrateConfig {
     let vendor = &sess.target.target.target_vendor;
     let min_atomic_width = sess.target.target.min_atomic_width();
     let max_atomic_width = sess.target.target.max_atomic_width();
+    let atomic_cas = sess.target.target.options.atomic_cas;
 
     let mut ret = HashSet::new();
     // Target bindings.
@@ -1405,6 +1408,9 @@ pub fn default_configuration(sess: &Session) -> ast::CrateConfig {
                 ));
             }
         }
+    }
+    if atomic_cas {
+        ret.insert((Symbol::intern("target_has_atomic"), Some(Symbol::intern("cas"))));
     }
     if sess.opts.debug_assertions {
         ret.insert((Symbol::intern("debug_assertions"), None));
